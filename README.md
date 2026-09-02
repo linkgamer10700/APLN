@@ -1,56 +1,43 @@
-# APLN
-
-Claro. En una versión simple, pero manteniendo el nivel del proyecto:
-
-Proyecto
-
-Sistema inteligente de detección de anomalías mediante selección negativa y computación paralela.
-
-¿Qué hace?
+# Sistema inteligente de detección de anomalías mediante selección negativa y computación paralela.
+## ¿Qué hace?
 
 El sistema aprende cómo es el comportamiento normal de un conjunto de datos y genera "detectores" que representan comportamientos diferentes.
 
 Cuando llega un dato nuevo:
-
-Si se parece al comportamiento normal → normal.
-Si es suficientemente diferente → anomalía.
-
+- Si se parece al comportamiento normal → normal.
+- Si es suficientemente diferente → anomalía.
 La idea está inspirada en el sistema inmunológico, donde las células aprenden a reconocer lo propio (Self) y reaccionan ante lo que no pertenece al organismo (Non-Self).
 
-¿Dónde lo aplicamos?
+## ¿Dónde lo aplicamos?
 
 Como primera aplicación:
 
 Detección de intrusiones en tráfico de red (NIDS).
 
-Por ejemplo:
+> Por ejemplo:
+> Tráfico normal
+>       ↓
+>   Aprendizaje
+>       ↓
+>  Detectores
+>       ↓
+> Nuevo tráfico
+>       ↓
+> ┌───────────────┐
+> │ ¿Se parece a  │
+> │ lo normal?    │
+> └───────┬───────┘
+>     Sí  │  No
+>        ↓    ↓
+>     NORMAL  ALERTA
 
-Tráfico normal
-      ↓
-  Aprendizaje
-      ↓
- Detectores
-      ↓
-Nuevo tráfico
-      ↓
-┌───────────────┐
-│ ¿Se parece a  │
-│ lo normal?    │
-└───────┬───────┘
-    Sí  │  No
-       ↓    ↓
-    NORMAL  ALERTA
-
-¿Dónde está la IA?
-
+## ¿Dónde está la IA?
 En el Algoritmo de Selección Negativa, que genera y selecciona automáticamente los detectores.
-
 No usamos modelos ya hechos. Implementamos el algoritmo nosotros mismos.
 
-¿Dónde está el paralelismo?
+## ¿Dónde está el paralelismo?
 
 La evaluación de miles o millones de posibles detectores puede hacerse simultáneamente:
-
 Detectores
     ↓
 ┌──────┬──────┬──────┬──────┐
