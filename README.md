@@ -38,6 +38,7 @@ No usamos modelos ya hechos. Implementamos el algoritmo nosotros mismos.
 ## ¿Dónde está el paralelismo?
 
 La evaluación de miles o millones de posibles detectores puede hacerse simultáneamente:
+
 Detectores
     ↓
 ┌──────┬──────┬──────┬──────┐
@@ -62,7 +63,8 @@ Impacto de aumentar el número de detectores.
 ¿Por qué es un proyecto fuerte?
 
 Porque combina:
-
 IA bioinspirada + detección de anomalías + ciberseguridad + computación paralela + programación de bajo nivel, todo implementado desde cero.
 
-Y lo más importante: si después deciden que no quieren cybersecurity, simplemente cambiamos los datos de entrada y mantenemos el mismo núcleo del proyecto. Por ejemplo, podría aplicarse a sensores industriales, transacciones financieras o secuencias biológicas.
+> Y lo más importante: si después deciden que no quieren cybersecurity, simplemente cambiamos los datos de entrada y mantenemos el mismo núcleo del proyecto. Por ejemplo, podría aplicarse a sensores industriales, transacciones financieras o secuencias biológicas.
+
+    
