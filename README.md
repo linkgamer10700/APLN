@@ -14,22 +14,8 @@ Como primera aplicación:
 
 Detección de intrusiones en tráfico de red (NIDS).
 
-> Por ejemplo:
-> Tráfico normal
->       ↓
->   Aprendizaje
->       ↓
->  Detectores
->       ↓
-> Nuevo tráfico
->       ↓
-> ┌───────────────┐
-> │ ¿Se parece a  │
-> │ lo normal?    │
-> └───────┬───────┘
->     Sí  │  No
->        ↓    ↓
->     NORMAL  ALERTA
+Por ejemplo:
+Tráfico normal $\rightarrow$ Aprendizaje $\rightarrow$ Detectores $\rightarrow$ Nuevo tráfico $\rightarrow$ ¿Se parece a lo normal? $\rightarrow$ ALERTA / NORMAL
 
 ## ¿Dónde está la IA?
 En el Algoritmo de Selección Negativa, que genera y selecciona automáticamente los detectores.
@@ -37,18 +23,7 @@ No usamos modelos ya hechos. Implementamos el algoritmo nosotros mismos.
 
 ## ¿Dónde está el paralelismo?
 
-La evaluación de miles o millones de posibles detectores puede hacerse simultáneamente:
-
-Detectores
-    ↓
-┌──────┬──────┬──────┬──────┐
-│CPU 1 │CPU 2 │CPU 3 │CPU 4 │
-└──────┴──────┴──────┴──────┘
-    ↓
-Resultados
-
-
-Utilizaríamos OpenMP en C para comparar la versión normal contra la versión paralela.
+La evaluación de miles o millones de posibles detectores puede hacerse simultáneamente, comparando la versión normal contra la versión paralela, utilizando OpenMP en C.
 
 ¿Qué vamos a medir?
 
