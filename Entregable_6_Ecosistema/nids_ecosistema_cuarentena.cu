@@ -1,35 +1,3 @@
-/**
- * ============================================================================
- * PROYECTO: Sistema Inteligente de Detección de Anomalías (NIDS) Bio-Inspirado
- * ENTREGABLE 6: Ecosistema Multi-Perfil y Lógica de Cuarentena (Tri-Estado)
- * ARCHIVO: nids_ecosistema_cuarentena.cu
- * ============================================================================
- * 
- * FUNDAMENTOS TEÓRICOS Y ARQUITECTURA (Teoría del Peligro y Convivencia):
- * ----------------------------------------------------------------------------
- * 1. Ecosistema Multi-Perfil (Múltiples "Especies" Benignas):
- *    Un servidor moderno no tiene un único comportamiento "normal". Hospeda
- *    múltiples servicios (especies) coexistiendo pacíficamente. El algoritmo
- *    ahora protege un ecosistema compuesto por N especies (ej. Web, DNS, API).
- *    La "Selección Negativa" induce apoptosis en cualquier detector que 
- *    colisione con CUALQUIERA de las especies benignas.
- *
- * 2. Manejo de Incertidumbre y Zona de Cuarentena (Lógica Tri-Estado):
- *    Se abandona la clasificación binaria estricta (0=Normal, 1=Ataque). 
- *    Se implementa un modelo de 3 estados operacionales:
- *      - ESTADO 0 (NORMAL): Tráfico asimilable a una especie conocida.
- *      - ESTADO 1 (CUARENTENA): "Especie no catalogada". El tráfico no encaja
- *        en los perfiles benignos, pero los detectores de amenaza tampoco
- *        lo marcan como ataque inminente. Requiere observación/sandboxing.
- *      - ESTADO 2 (BLOQUEO): Colisión directa con un detector del repertorio.
- *        Ataque confirmado, mitigación inmediata.
- *
- * 3. Ingesta Dinámica:
- *    Procesamiento a partir de CSV (`trafico_red.csv`) con mecanismo de 
- *    contingencia en memoria si el archivo no está disponible.
- * ============================================================================
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,9 +5,6 @@
 #include <math.h>
 #include <cuda_runtime.h>
 
-// ============================================================================
-// CONFIGURACIÓN Y CONSTANTES DEL SISTEMA
-// ============================================================================
 #define TOTAL_DETECTORES_A_GENERAR 8192
 #define NUM_ESPECIES 3
 #define MAX_PAQUETES 1000
@@ -48,13 +13,6 @@
 #define UMBRAL_ENTRENAMIENTO 200   // Radio de pertenencia a una Especie Normal
 #define UMBRAL_DETECCION 120       // Radio de colisión para confirmar Ataque
 
-// ============================================================================
-// ESTRUCTURAS DE DATOS (ESPACIO 4D)
-// ============================================================================
-
-/**
- * Representa una especie benigna dentro del ecosistema (Clúster Normal).
- */
 struct EspecieSelf {
     int id_especie;
     int puerto_destino;
@@ -64,9 +22,6 @@ struct EspecieSelf {
     char descripcion[50];
 };
 
-/**
- * Tupla representativa de tráfico de red a evaluar.
- */
 struct PaqueteDatos {
     int id;
     int puerto_origen;
@@ -77,9 +32,6 @@ struct PaqueteDatos {
     int estado_clasificacion; // 0: Normal, 1: Cuarentena, 2: Bloqueado
 };
 
-/**
- * Receptor Inmunológico (Célula T) maduro en el espacio Non-Self.
- */
 struct Detector {
     int puerto_destino;
     int tamano_carga;
@@ -87,13 +39,6 @@ struct Detector {
     int peticiones_por_segundo;
 };
 
-// ============================================================================
-// FUNCIONES DE SOPORTE Y LÓGICA HOST (CPU)
-// ============================================================================
-
-/**
- * Calcula la distancia L1 (Manhattan) absoluta.
- */
 int distancia_manhattan_cpu(int p1, int t1, int d1, int r1,
                             int p2, int t2, int d2, int r2) {
     return abs(p1 - p2) + abs(t1 - t2) + abs(d1 - d2) + abs(r1 - r2);
@@ -132,11 +77,6 @@ void inicializar_ecosistema(struct EspecieSelf* especies) {
     strcpy(especies[2].descripcion, "Transferencia Interna / API REST");
 }
 
-/**
- * SELECCIÓN NEGATIVA MULTI-PERFIL:
- * Los detectores candidatos se evalúan contra TODAS las especies del ecosistema.
- * La colisión con CUALQUIERA de ellas induce apoptosis.
- */
 int generar_detectores_ecosistema(struct Detector* detectores, struct EspecieSelf* especies, int num_espc) {
     int validos = 0;
 
@@ -211,13 +151,6 @@ int generar_detectores_ecosistema(struct Detector* detectores, struct EspecieSel
     return validos;
 }
 
-// ============================================================================
-// INGESTA DINÁMICA DE TRÁFICO (CSV)
-// ============================================================================
-
-/**
- * Contingencia: Carga un arreglo de paquetes simulados si el CSV no existe.
- */
 int cargar_trafico_sintetico(struct PaqueteDatos* paquetes) {
     int n = 0;
     
@@ -295,12 +228,6 @@ __device__ int inline distancia_l1_gpu(int p1, int t1, int d1, int r1,
     return d_puerto + d_tam + d_dur + d_pet;
 }
 
-/**
- * LÓGICA DE DECISIÓN TRI-ESTADO (GPU):
- * 1. Calcula distancia mínima a todo el repertorio de anomalías (Detectores).
- * 2. Calcula distancia mínima al ecosistema benigno (Especies Self).
- * 3. Determina el estado: BLOQUEO (2), NORMAL (0) o CUARENTENA (1).
- */
 __global__ void evaluar_ecosistema_gpu(
     struct PaqueteDatos* d_paquetes,
     struct Detector* d_detectores,
@@ -387,15 +314,8 @@ void exportar_reporte(const char* archivo, struct PaqueteDatos* paquetes, int nu
     fclose(fp);
 }
 
-// ============================================================================
-// FUNCIÓN PRINCIPAL (MAIN)
-// ============================================================================
 int main() {
     srand(42);
-
-    printf("============================================================================\n");
-    printf(" SISTEMA NIDS BIO-INSPIRADO - ECOSISTEMA MULTIPERFIL Y CUARENTENA (CUDA)    \n");
-    printf("============================================================================\n\n");
 
     // 1. Configurar Ecosistema Benigno
     printf("[1] CARGANDO ECOSISTEMA BENIGNO (ESPECIES SELF)...\n");

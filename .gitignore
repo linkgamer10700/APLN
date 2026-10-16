@@ -2,3 +2,12 @@ Entregable_4_Multidimensional/nids_multidimensional
 Entregable_5_Visualizador/frontera_datos.csv
 Entregable_6_Ecosistema/reporte_inspeccion.csv
 Entregable_6_Ecosistema/nids_ecosistema_cuarentena
+
+# Entregable 7 (Binarios y Datasets)
+entregable_7/nids_entrenamiento_real
+entregable_7/reporte_inspeccion.csv
+entregable_7/server_background_traffic.csv
+entregable_7/server_live_traffic.csv
+
+# Archivos de captura crudos y pesados
+trafico_servidor_raw.pcap

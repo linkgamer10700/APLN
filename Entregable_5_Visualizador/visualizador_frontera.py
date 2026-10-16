@@ -1,32 +1,3 @@
-"""
-==============================================================================
-PROYECTO: Sistema Inteligente de Detección de Anomalías (NIDS) Bio-Inspirado
-ENTREGABLE 5: Visualizador Gráfico del Espacio Matemático y Frontera Inmune
-ARCHIVO: visualizador_frontera.py
-==============================================================================
-
-DESCRIPCIÓN CIENTÍFICA:
-Este script procesa los resultados generados por el motor paralelo en CUDA
-(nids_multidimensional.cu) y renderiza una gráfica de dispersión 3D (Scatter Plot 3D)
-del "Espacio de Formas" (Shape Space) inmunológico.
-
-Mapeo Biológico a Coordenadas Espaciales:
-  - Eje X (Puerto Destino): Tipo de servicio en red.
-  - Eje Y (Tamaño de Carga Útil en Bytes): Volumen de datos del paquete.
-  - Eje Z (Duración de Conexión en ms): Persistencia temporal de la sesión.
-  *(La 4ta dimensión: 'peticiones_por_segundo', actúa en la clasificación del espacio 4D)*
-
-Poblaciones Representadas:
-  1. Self (Tráfico Normal - Azul): Conexiones rutinarias del servidor web
-     agrupadas en la zona de tolerancia propia (Self Tolerance Hole).
-  2. Non-Self (Anomalías - Rojo Grande): Paquetes maliciosos que colisionaron
-     con receptores de los detectores en la GPU (DDoS, Scan, Inyecciones, etc.).
-  3. Detectores Inmunes (Gris / Ámbar Semitransparente): Células T maduras que
-     sobrevivieron a la selección negativa en el timo digital, cubriendo el
-     espacio no propio y evidenciando el agujero vacío alrededor del Self.
-==============================================================================
-"""
-
 import os
 import sys
 import pandas as pd

@@ -1,38 +1,3 @@
-/**
- * ============================================================================
- * PROYECTO: Sistema Inteligente de Detección de Anomalías (NIDS) Bio-Inspirado
- * ENTREGABLE 4: Expansión Multidimensional y Procesamiento Paralelo en GPU (CUDA)
- * ARCHIVO: nids_multidimensional.cu
- * ============================================================================
- *
- * FUNDAMENTOS TEÓRICOS Y ARQUITECTURA:
- * ------------------------------------
- * 1. Algoritmo de Selección Negativa (NSA - Negative Selection Algorithm):
- *    Inspirado en el sistema inmunológico biológico (maduración y tolerancia de
- *    linfocitos T en el timo). El sistema divide el universo de tráfico en:
- *      - Self (Propio): Patrones rutinarios y benignos del servidor/red.
- *      - Non-Self (No Propio): Intrusiones, anomalías, escaneos y ataques.
- *
- * 2. Espacio de Formas Multidimensional (Shape Space 4D):
- *    Cada paquete de red o detector inmunológico se modela como un vector:
- *    x = [puerto_destino, tamano_carga, duracion_conexion, peticiones_por_segundo]
- *
- * 3. Métrica de Distancia de Manhattan (Norma L1):
- *    D(A, B) = sum(|A_i - B_i|)
- *    Seleccionada por su eficiencia aritmética en aceleradores GPU (sin multiplicaciones
- *    ni raíces cuadradas complejas), ideal para procesamiento de paquetes a tasa de línea.
- *
- * 4. Paralelismo Masivo en GPU (NVIDIA CUDA):
- *    - Memoria dinámica (cudaMalloc / cudaMemcpy / cudaFree).
- *    - Función __device__ distancia_gpu: cálculo L1 compilado para hilos CUDA.
- *    - Kernel __global__ evaluar_trafico_gpu: mapeo masivo de un paquete por hilo,
- *      comparando de manera concurrente contra el repertorio completo de detectores.
- *
- * 5. Exportación al Entregable 5:
- *    Generación de 'frontera_datos.csv' para renderizado tridimensional.
- * ============================================================================
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,39 +5,19 @@
 #include <math.h>
 #include <cuda_runtime.h>
 
-// ============================================================================
-// CONFIGURACIÓN DEL SISTEMA Y CONSTANTES ESTÁTICAS
-// ============================================================================
 #define NUM_PAQUETES 14
 #define TOTAL_DETECTORES_A_GENERAR 4096
 #define MAX_DETECTORES_CSV 500
 
-// --- PERFIL NORMAL (SELF) ---
-// Representa el comportamiento rutinario del servidor web protegido
 #define PERFIL_PUERTO_DEST 80       // Puerto HTTP estándar
 #define PERFIL_TAMANO 500           // Tamaño promedio de payload en bytes
 #define PERFIL_DURACION 120         // Duración promedio de sesión en ms
 #define PERFIL_PETICIONES 15        // Frecuencia promedio en peticiones/seg
 
-// --- UMBRALES DE DISTANCIA (MÉTRICA MANHATTAN 4D) ---
-// UMBRAL_ENTRENAMIENTO: Radio de tolerancia del Self durante la selección negativa.
-// Cualquier detector candidato a una distancia <= UMBRAL_ENTRENAMIENTO del Self
-// es eliminado (apoptosis) para prevenir falsos positivos (autoinmunidad).
 #define UMBRAL_ENTRENAMIENTO 250
 
-// UMBRAL_DETECCION: Radio de afinidad de un detector para alertar sobre una anomalía.
-// Garantía matemática de cero falsos positivos:
-//   MinDist(Detector, Normal) >= UMBRAL_ENTRENAMIENTO - MaxDist(Normal, Self)
-//   250 - 41 = 209 > 180 (UMBRAL_DETECCION).
 #define UMBRAL_DETECCION 180
 
-// ============================================================================
-// ESTRUCTURAS DE DATOS MULTIDIMENSIONALES (4 CARACTERÍSTICAS)
-// ============================================================================
-
-/**
- * Representación estructurada de un paquete de datos en la red.
- */
 struct PaqueteDatos {
     int id;                         // Identificador numérico del paquete
     int puerto_origen;              // Puerto origen del cliente
@@ -83,9 +28,6 @@ struct PaqueteDatos {
     int senal_control;              // 0: Normal / Permitido, 1: Anomalía / Bloqueado
 };
 
-/**
- * Representación de un Detector Inmunológico (Linfocito T maduro) en 4D.
- */
 struct Detector {
     int puerto_destino;             // Dimensión 1
     int tamano_carga;               // Dimensión 2
@@ -93,31 +35,15 @@ struct Detector {
     int peticiones_por_segundo;     // Dimensión 4
 };
 
-// ============================================================================
-// FUNCIONES EN CPU (HOST)
-// ============================================================================
-
-/**
- * Distancia de Manhattan (Norma L1) en un espacio de 4 dimensiones:
- * D(p, d) = |p1 - d1| + |p2 - d2| + |p3 - d3| + |p4 - d4|
- */
 int distancia_manhattan_cpu(int p1, int t1, int d1, int r1,
                             int p2, int t2, int d2, int r2) {
     return abs(p1 - p2) + abs(t1 - t2) + abs(d1 - d2) + abs(r1 - r2);
 }
 
-/**
- * Generador auxiliar de números aleatorios uniformes en el rango [min, max].
- */
 int aleatorio_en_rango(int min, int max) {
     return min + rand() % (max - min + 1);
 }
 
-/**
- * FASE 1: APRENDIZAJE Y SELECCIÓN NEGATIVA (Tolerancia Central en CPU)
- * Genera candidatos y elimina aquellos que reconozcan el perfil Self.
- * Los sobrevivientes maduran para formar el repertorio de receptores Non-Self.
- */
 int generar_detectores(struct Detector* detectores) {
     int validos = 0;
 
@@ -127,8 +53,6 @@ int generar_detectores(struct Detector* detectores) {
         int r_duracion;
         int r_peticiones;
 
-        // Muestreo estratificado del espacio de formas para asegurar cobertura
-        // de las regiones anómalas (escaneos, ataques de fuerza bruta, DoS, fugas, etc.)
         int modo = i % 8;
         if (modo == 0) {
             // Escaneo de servicios bajos (SSH, Telnet, FTP, etc.)
@@ -187,9 +111,6 @@ int generar_detectores(struct Detector* detectores) {
             PERFIL_PUERTO_DEST, PERFIL_TAMANO, PERFIL_DURACION, PERFIL_PETICIONES
         );
 
-        // SELECCIÓN NEGATIVA:
-        // Si el detector colisiona con el Self, se destruye (apoptosis).
-        // Si dist_al_normal > UMBRAL_ENTRENAMIENTO, el detector madura y sobrevive.
         if (dist_al_normal > UMBRAL_ENTRENAMIENTO) {
             detectores[validos].puerto_destino = r_puerto;
             detectores[validos].tamano_carga = r_tamano;
@@ -202,10 +123,6 @@ int generar_detectores(struct Detector* detectores) {
     return validos;
 }
 
-/**
- * FASE 2: ENCAPSULAMIENTO DE PAQUETE (CPU)
- * Inicializa la tupla de 4 características asignando estado seguro por defecto.
- */
 struct PaqueteDatos crear_paquete(int id, int p_orig, int p_dest, int tam, int dur, int reqs) {
     struct PaqueteDatos p;
     p.id = id;
@@ -218,16 +135,6 @@ struct PaqueteDatos crear_paquete(int id, int p_orig, int p_dest, int tam, int d
     return p;
 }
 
-// ============================================================================
-// FUNCIONES Y KERNEL EN GPU (DEVICE Y GLOBAL CUDA)
-// ============================================================================
-
-/**
- * Función Device de CUDA (__device__):
- * Ejecutada por cada hilo de la GPU en paralelo.
- * Calcula la distancia de Manhattan en 4 dimensiones:
- * D = |puerto - d_puerto| + |tamano - d_tamano| + |duracion - d_duracion| + |pet - d_pet|
- */
 __device__ int distancia_gpu(struct PaqueteDatos p, struct Detector d) {
     int d_puerto = p.puerto_destino - d.puerto_destino;
     if (d_puerto < 0) d_puerto = -d_puerto;
@@ -244,12 +151,6 @@ __device__ int distancia_gpu(struct PaqueteDatos p, struct Detector d) {
     return d_puerto + d_tam + d_dur + d_pet;
 }
 
-/**
- * Kernel de CUDA (__global__):
- * Paralelismo masivo en GPU: Cada hilo evalúa un paquete contra los detectores.
- * Si un paquete tiene afinidad con un detector (distancia <= umbral_deteccion),
- * se reconoce una colisión anómala y se activa senal_control = 1.
- */
 __global__ void evaluar_trafico_gpu(
     struct PaqueteDatos* d_paquetes,
     struct Detector* d_detectores,
@@ -277,14 +178,6 @@ __global__ void evaluar_trafico_gpu(
     }
 }
 
-// ============================================================================
-// EXPORTACIÓN DE DATOS (ENTREGABLE 5)
-// ============================================================================
-
-/**
- * Exporta el espacio de formas clasificado al archivo 'frontera_datos.csv'.
- * Columnas requeridas: tipo,puerto,tamano,duracion,peticiones
- */
 void exportar_frontera_csv(const char* nombre_archivo,
                            struct PaqueteDatos* paquetes, int num_paquetes,
                            struct Detector* detectores, int num_detectores) {
@@ -323,20 +216,9 @@ void exportar_frontera_csv(const char* nombre_archivo,
            nombre_archivo, num_paquetes, muestra);
 }
 
-// ============================================================================
-// FUNCIÓN PRINCIPAL (MAIN)
-// ============================================================================
 int main() {
     srand(1337); // Semilla reproducible para experimentación científica
 
-    printf("====================================================================\n");
-    printf(" SISTEMA NIDS BIO-INSPIRADO - SELECCION NEGATIVA MULTIDIMENSIONAL   \n");
-    printf(" ACELERADO CON GPU NVIDIA CUDA (ESPACIO DE CARACTERISTICAS 4D)     \n");
-    printf("====================================================================\n\n");
-
-    // ------------------------------------------------------------------------
-    // [1] FASE DE APRENDIZAJE: SELECCIÓN NEGATIVA EN CPU
-    // ------------------------------------------------------------------------
     printf("[1] FASE DE APRENDIZAJE (SELECCION NEGATIVA / TOLERANCIA CENTRAL)...\n");
     printf("    Perfil Normal (Self): Pto=%d, Tam=%d B, Dur=%d ms, Pet=%d req/s\n",
            PERFIL_PUERTO_DEST, PERFIL_TAMANO, PERFIL_DURACION, PERFIL_PETICIONES);
@@ -352,13 +234,9 @@ int main() {
     printf("    -> Detectores maduros sobrevivientes (Repertorio Non-Self): %d\n\n",
            num_detectores_validos);
 
-    // ------------------------------------------------------------------------
-    // [2] ENCAPSULAMIENTO DE TRÁFICO MULTIDIMENSIONAL (CPU)
-    // ------------------------------------------------------------------------
     printf("[2] ENCAPSULAMIENTO DE TRAFICO MULTIDIMENSIONAL (CPU)...\n");
     struct PaqueteDatos paquetes_cpu[NUM_PAQUETES];
 
-    // Tráfico Normal (Self): Variaciones operacionales legítimas alrededor del perfil
     paquetes_cpu[0]  = crear_paquete(1, 5001, 80, 500, 120, 15); // Exacto al perfil
     paquetes_cpu[1]  = crear_paquete(2, 5002, 80, 480, 110, 14); // Petición GET ligera
     paquetes_cpu[2]  = crear_paquete(3, 5003, 80, 530, 130, 16); // Formulario POST
@@ -386,12 +264,8 @@ int main() {
     }
     printf("\n");
 
-    // ------------------------------------------------------------------------
-    // [3] FASE DE EVALUACIÓN PARALELA EN GPU (CUDA)
-    // ------------------------------------------------------------------------
     printf("[3] FASE DE EVALUACION PARALELA EN GPU CON CUDA...\n");
 
-    // Punteros a la memoria de la tarjeta gráfica (VRAM)
     struct PaqueteDatos* d_paquetes = NULL;
     struct Detector* d_detectores = NULL;
     int* d_resultados = NULL;
@@ -432,9 +306,6 @@ int main() {
 
     printf("    -> Evaluacion en GPU finalizada con exito.\n\n");
 
-    // ------------------------------------------------------------------------
-    // [4] RESULTADOS Y ACCIÓN DE MITIGACIÓN
-    // ------------------------------------------------------------------------
     printf("[4] RESULTADOS DEL ANALISIS INMUNOLOGICO:\n");
     int total_anomalias = 0;
     int total_normales = 0;
@@ -461,16 +332,10 @@ int main() {
     printf("\n    Resumen: %d paquetes normales (Self), %d anomalias detectadas (Non-Self).\n\n",
            total_normales, total_anomalias);
 
-    // ------------------------------------------------------------------------
-    // [5] EXPORTACIÓN AL ESPACIO MATEMÁTICO (ENTREGABLE 5)
-    // ------------------------------------------------------------------------
     printf("[5] EXPORTACION AL ESPACIO MATEMATICO (ENTREGABLE 5)...\n");
     exportar_frontera_csv("frontera_datos.csv", paquetes_cpu, NUM_PAQUETES,
                           detectores_cpu, num_detectores_validos);
 
-    // ------------------------------------------------------------------------
-    // [6] LIBERACIÓN DE MEMORIA DINÁMICA EN GPU
-    // ------------------------------------------------------------------------
     cudaFree(d_paquetes);
     cudaFree(d_detectores);
     cudaFree(d_resultados);
