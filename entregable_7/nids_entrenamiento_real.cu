@@ -75,16 +75,12 @@
 
 // Parametros de Hiperescala Inmunologica
 #define TOTAL_DETECTORES_A_GENERAR 16384
-#define MAX_ESPECIES_SELF 16
+#define MAX_ESPECIES_SELF 128
 #define MAX_PAQUETES 2000
 
 // Umbrales de Afinidad Geometrica Calibrada (Norma L1 en R^7)
-#define UMBRAL_ENTRENAMIENTO 120   // Radio del halo de tolerancia Self legitimo
-#define UMBRAL_DETECCION 100       // Radio de colision para activacion letal de Detector
-
-// ============================================================================
-// ESTRUCTURAS DE DATOS EN 7 DIMENSIONES
-// ============================================================================
+#define UMBRAL_ENTRENAMIENTO 250   // Radio del halo de tolerancia Self legitimo (calibrado para datos reales)
+#define UMBRAL_DETECCION 150       // Radio de colision para activacion letal de Detector
 
 struct EspecieSelf {
     int id_especie;
@@ -132,14 +128,14 @@ int distancia_manhattan_cpu(
     int p1, int t1, int d1, int r1, int b1, int f1, int v1,
     int p2, int t2, int d2, int r2, int b2, int f2, int v2
 ) {
-    // Discriminacion categorica de puerto
-    int d_p = (p1 == p2) ? 0 : ((abs(p1 - p2) > 30) ? 300 : abs(p1 - p2) * 10);
-    int d_t = abs(t1 - t2) / 4;
-    int d_d = abs(d1 - d2) / 4;
-    int d_r = abs(r1 - r2) * 2;
-    int d_b = abs(b1 - b2) / 64;
-    int d_f = abs(f1 - f2) * 5;
-    int d_v = abs(v1 - v2) * 2;
+    // Discriminacion categorica de puerto con escala dimensional calibrada
+    int d_p = (p1 == p2) ? 0 : ((abs(p1 - p2) > 30) ? 500 : abs(p1 - p2) * 15);
+    int d_t = abs(t1 - t2) / 8;
+    int d_d = abs(d1 - d2) / 256;
+    int d_r = abs(r1 - r2) / 8;
+    int d_b = abs(b1 - b2) / 1024;
+    int d_f = abs(f1 - f2) * 4;
+    int d_v = abs(v1 - v2) / 256;
 
     return d_p + d_t + d_d + d_r + d_b + d_f + d_v;
 }
@@ -154,14 +150,14 @@ __device__ int inline distancia_l1_gpu(
     int d_p = 0;
     if (p1 != p2) {
         int diff = p1 - p2; if (diff < 0) diff = -diff;
-        d_p = (diff > 30) ? 300 : diff * 10;
+        d_p = (diff > 30) ? 500 : diff * 15;
     }
-    int d_t = t1 - t2; if (d_t < 0) d_t = -d_t; d_t /= 4;
-    int d_d = d1 - d2; if (d_d < 0) d_d = -d_d; d_d /= 4;
-    int d_r = r1 - r2; if (d_r < 0) d_r = -d_r; d_r *= 2;
-    int d_b = b1 - b2; if (d_b < 0) d_b = -d_b; d_b /= 64;
-    int d_f = f1 - f2; if (d_f < 0) d_f = -d_f; d_f *= 5;
-    int d_v = v1 - v2; if (d_v < 0) d_v = -d_v; d_v *= 2;
+    int d_t = t1 - t2; if (d_t < 0) d_t = -d_t; d_t /= 8;
+    int d_d = d1 - d2; if (d_d < 0) d_d = -d_d; d_d /= 256;
+    int d_r = r1 - r2; if (d_r < 0) d_r = -d_r; d_r /= 8;
+    int d_b = b1 - b2; if (d_b < 0) d_b = -d_b; d_b /= 1024;
+    int d_f = f1 - f2; if (d_f < 0) d_f = -d_f; d_f *= 4;
+    int d_v = v1 - v2; if (d_v < 0) d_v = -d_v; d_v /= 256;
 
     return d_p + d_t + d_d + d_r + d_b + d_f + d_v;
 }
@@ -239,12 +235,14 @@ int entrenar_perfil_self_csv(const char* archivo_entrenamiento, struct EspecieSe
                 }
             }
 
+            int dur_cap = (dur > 60000) ? 60000 : dur;
+            int var_cap = (var_t > 60000) ? 60000 : var_t;
             acum_tamano[idx_esp] += tam;
-            acum_duracion[idx_esp] += dur;
+            acum_duracion[idx_esp] += dur_cap;
             acum_peticiones[idx_esp] += req;
             acum_tasa[idx_esp] += tasa;
             acum_banderas[idx_esp] += flags;
-            acum_varianza[idx_esp] += var_t;
+            acum_varianza[idx_esp] += var_cap;
             conteo_muestras[idx_esp]++;
             total_paquetes++;
         }

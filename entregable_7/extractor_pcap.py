@@ -24,7 +24,7 @@ import os
 import time
 import csv
 import statistics
-from collections import defaultdict
+from collections import defaultdict, Counter
 from scapy.all import PcapReader, IP, IPv6, TCP, UDP
 
 
@@ -55,6 +55,27 @@ class FlowAccumulator:
         self.iats.append(iat_ms)
         self.last_time = pkt_time
         self.flags_count += flags_count
+
+
+def resolver_servicio_cliente(sport: int, dport: int):
+    """
+    Determina cual es el puerto de servicio (servidor/escucha) y cual el del cliente.
+    En Linux y estandares de red, los puertos efimeros de clientes dinamicos son >= 32768.
+    Los servicios escuchan en puertos reservados y bien conocidos (< 32768).
+    Si ambos son < 32768 o ambos >= 32768, el menor es el puerto del servicio.
+    """
+    es_sport_efimero = (sport >= 32768)
+    es_dport_efimero = (dport >= 32768)
+
+    if es_sport_efimero and not es_dport_efimero:
+        return sport, dport  # sport=cliente, dport=servicio
+    elif es_dport_efimero and not es_sport_efimero:
+        return dport, sport  # dport=cliente (respuesta), sport=servicio
+    else:
+        if sport <= dport:
+            return dport, sport  # dport=cliente, sport=servicio
+        else:
+            return sport, dport  # sport=cliente, sport=servicio
 
 
 def extraer_flujos_pcap(pcap_path: str, output_csv: str):
@@ -119,13 +140,21 @@ def extraer_flujos_pcap(pcap_path: str, output_csv: str):
                 pkt_time = float(pkt.time)
                 valid_pkts += 1
 
-                # Clave de 4 tuplas para la sesión
-                flow_key = (src_ip, sport, dst_ip, dport)
+                # Determinar puerto logico de cliente (p_orig) y servicio (p_dest)
+                p_cliente, p_servicio = resolver_servicio_cliente(sport, dport)
+
+                # Clave canonica de sesion bidireccional (asocia paquetes de ida y vuelta)
+                ep1 = (src_ip, sport)
+                ep2 = (dst_ip, dport)
+                if ep1 <= ep2:
+                    flow_key = (ep1, ep2, proto)
+                else:
+                    flow_key = (ep2, ep1, proto)
 
                 if flow_key not in flows:
                     flows[flow_key] = FlowAccumulator(
-                        sport=sport,
-                        dport=dport,
+                        sport=p_cliente,
+                        dport=p_servicio,
                         proto=proto,
                         first_time=pkt_time,
                         pkt_len=pkt_len,
@@ -162,9 +191,13 @@ def extraer_flujos_pcap(pcap_path: str, output_csv: str):
         writer = csv.writer(f)
         writer.writerow(fieldnames)
 
+        # Priorizar servicios con mayor densidad de trafico para que entren primero a los centroides Self
+        service_counts = Counter(f.dport for f in flows.values())
+        sorted_flows = sorted(flows.values(), key=lambda f: (-service_counts[f.dport], f.dport, -f.count))
+
         session_id = 1
-        for flow_key, flow in flows.items():
-            # Dim 1: puerto_destino
+        for flow in sorted_flows:
+            # Dim 1: puerto_destino (servicio legitimo protegido)
             p_dest = flow.dport
             p_orig = flow.sport
 
